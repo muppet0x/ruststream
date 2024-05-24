@@ -7,6 +7,7 @@ interface VideoPlayerProps {
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, type = "video/mp4" }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [volume, setVolume] = useState<number>(1);
   const [quality, setQuality] = useState<string>('720p');
@@ -18,11 +19,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, type = "video/mp4" }) =>
   }, [volume]);
 
   const playPauseVideo = () => {
-    if (videoRef.current) {
+    const videoElement = videoRef.current;
+    if (videoElement) {
       if (isPlaying) {
-        videoRef.current.pause();
+        videoElement.pause();
       } else {
-        videoRef.current.play();
+        videoElement.play();
       }
       setIsPlaying(!isPlaying);
     }
@@ -45,6 +47,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, type = "video/mp4" }) =>
       </video>
       <div>
         <button onClick={playPauseVideo}>{isPlaying ? 'Pause' : 'Play'}</button>
+        
         <div>
           <label htmlFor="volume">Volume:</label>
           <input
@@ -58,9 +61,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, type = "video/mp4" }) =>
             onChange={handleVolumeChange}
           />
         </div>
+        
         <div>
           <label htmlFor="quality">Quality:</label>
-          <select name="quality" id="quality" value={quality} onChange={handleQualityChange}>
+          <select 
+            name="quality" 
+            id="quality" 
+            value={quality} 
+            onChange={handleQualityChange}>
             <option value="360p">360p</option>
             <option value="480p">480p</option>
             <option value="720p">720p</option>
