@@ -1,53 +1,46 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, ChangeEventHandler, MouseEventHandler } from 'react';
 
 interface VideoPlayerProps {
   src: string;
   type?: string;
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, type = "video/mp4" }) => {
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, type = 'video/mp4' }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [volume, setVolume] = useState<number>(1);
-  const [quality, setQuality] = useState<string>('720p');
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [quality, setQuality] = useState('720p');
 
   useEffect(() => {
-    if(videoRef.current) {
-      videoRef.current.volume = volume;
-    }
+    const video = videoRef.current;
+    if (video) video.volume = volume;
   }, [volume]);
 
-  const playPauseVideo = () => {
-    const videoElement = videoRef.current;
-    if (videoElement) {
-      if (isPlaying) {
-        videoElement.pause();
-      } else {
-        videoElement.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
+  const togglePlayPause: MouseEventHandler<HTMLButtonElement> = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const method = video.paused ? 'play' : 'pause';
+    video[method]();
+    setIsPlaying(!video.paused);
   };
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVolumeChange: ChangeEventHandler<HTMLInputElement> = (e) => {
     setVolume(parseFloat(e.target.value));
   };
 
-  const handleQualityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    console.log(`Quality set to ${e.target.value}`);
+  const handleQualityChange: ChangeEventHandler<HTMLSelectElement> = (e) => {
     setQuality(e.target.value);
   };
 
   return (
     <div>
-      <video ref={videoRef} width="100%">
+      <video ref={videoRef} width="100%" onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)}>
         <source src={src} type={type} />
         Your browser does not support the video tag.
       </video>
       <div>
-        <button onClick={playPauseVideo}>{isPlaying ? 'Pause' : 'Play'}</button>
-        
+        <button onClick={togglePlayPause}>{isPlaying ? 'Pause' : 'Play'}</button>
         <div>
           <label htmlFor="volume">Volume:</label>
           <input
@@ -57,18 +50,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, type = "video/mp4" }) =>
             min="0"
             max="1"
             step="0.05"
-            value={volume}
+            value={volume.toString()}
             onChange={handleVolumeChange}
           />
         </div>
-        
         <div>
           <label htmlFor="quality">Quality:</label>
-          <select 
-            name="quality" 
-            id="quality" 
-            value={quality} 
-            onChange={handleQualityChange}>
+          <select name="quality" id="quality" value={quality} onChange={handleQualityChange}>
             <option value="360p">360p</option>
             <option value="480p">480p</option>
             <option value="720p">720p</option>
