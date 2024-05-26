@@ -1,11 +1,14 @@
-use hyper::{service::{make_service_fn, service_fn}, Body, Method, Request, Response, Server, StatusCode};
+use hyper::{
+    service::{make_service_fn, service_fn},
+    Body, Method, Request, Response, Server, StatusCode,
+};
 use std::convert::Infallible;
 use std::env;
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 
-async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible> {
+async fn process_request(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/stream") => Ok(Response::new(Body::from("Streaming video..."))),
         _ => Ok(Response::builder()
@@ -17,34 +20,34 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible
 
 #[tokio::main]
 async fn main() {
-    let server_addr = env::var("SERVER_ADDR").unwrap_or_else(|_| "127.0.0.1:3000".to_string());
-    let server_addr = match server_addr.to_socket_addrs() {
-        Ok(mut addrs) => addrs.next().expect("Invalid SERVER_ADDR"),
+    let server_address_str = env::var("SERVER_ADDR").unwrap_or_else(|_| "127.0.0.1:3000".to_string());
+    let server_socket_address = match server_address_str.to_socket_addrs() {
+        Ok(mut addresses) => addresses.next().expect("Invalid SERVER_ADDR"),
         Err(_) => {
-            eprintln!("Failed to parse SERVER_ADDR");
+            eprintln!("Failed to parse SERVER_ADDR.");
             return;
         },
     };
 
-    let concurrency_limit = env::var("CONCURRENCY_LIMIT")
+    let max_concurrency_str = env::var("CONCURRENCY_LIMIT")
                             .unwrap_or_else(|_| "100".to_string())
                             .parse::<usize>();
-    let semaphore = Arc::new(Semaphore::new(match concurrency_limit {
+    let request_limit_semaphore = Arc::new(Semaphore::new(match max_concurrency_str {
         Ok(limit) => limit,
         Err(_) => {
-            eprintln!("Failed to parse CONCURRENCY_LIMIT");
+            eprintln!("Failed to parse CONCURRENCY_LIMIT.");
             return;
         }
     }));
 
-    let make_svc = make_service_fn(move |_conn| {
-        let semaphore = semaphore.clone();
-        async {
-            Ok::<_, Infallible>(service_fn(move |req| {
-                let permit_future = semaphore.clone().acquire_owned();
-                async {
-                    match permit_future.await {
-                        Ok(_permit) => handle_request(req).await,
+    let service_factory = make_service_fn(move |_connection| {
+        let semaphore_clone = request_limit_semaphore.clone();
+        async move {
+            Ok::<_, Infallible>(service_fn(move |request| {
+                let semaphore_permit_future = semaphore_clone.clone().acquire_owned();
+                async move {
+                    match semaphore_permit_future.await {
+                        Ok(_permit) => process_request(request).await,
                         Err(e) => {
                             eprintln!("Semaphore error: {}", e);
                             Ok(Response::builder()
@@ -58,10 +61,10 @@ async fn main() {
         }
     });
 
-    let server = Server::bind(&server_addr).serve(make_svc);
-    println!("Listening on http://{}", server_addr);
+    let server_instance = Server::bind(&server_socket_address).serve(service_factory);
+    println!("Listening on http://{}", server_socket_address);
 
-    if let Err(e) = server.await {
-        eprintln!("Server error: {}", e);
+    if let Err(server_error) = server_instance.await {
+        eprintln!("Server error: {}", server_error);
     }
 }
