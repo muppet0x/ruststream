@@ -21,16 +21,11 @@ const useVideoStream = () => {
     try {
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/start_stream`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(streamSettings),
       });
-      if (response.ok) {
-        setIsStreaming(true);
-      } else {
-        console.error('Failed to start stream');
-      }
+      if (response.ok) setIsStreaming(true);
+      else console.error('Failed to start stream');
     } catch (error) {
       console.error('Error starting stream:', error);
     }
@@ -42,14 +37,10 @@ const useVideoStream = () => {
       try {
         const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/adjust_settings`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newSettings),
         });
-        if (!response.ok) {
-          console.error('Failed to adjust stream settings');
-        }
+        if (!response.ok) console.error('Failed to adjust stream settings');
       } catch (error) {
         console.error('Error adjusting stream settings:', error);
       }
