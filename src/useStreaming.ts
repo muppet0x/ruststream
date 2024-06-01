@@ -1,69 +1,75 @@
 import { useState, useEffect } from 'react';
 
-interface VideoStreamSettings {
+interface VideoStreamConfig {
   resolution: string;
   bitrate: string;
   frameRate: number;
 }
 
-interface VideoStreamHealth {
+interface StreamHealthStatus {
   isConnected: boolean;
   networkLatency: number;
-  lostPackets: number;
+  packetLoss: number;
 }
 
-const useVideoStream = () => {
-  const [isActive, setIsActive] = useState<boolean>(false);
-  const [settings, setSettings] = useState<VideoStreamSettings>({ resolution: '1080p', bitrate: '4500kbps', frameRate: 60 });
-  const [health, setHealth] = useState<VideoStreamHealth>({ isConnected: false, networkLatency: 0, lostPackets: 0 });
+const useStreamControl = () => {
+  const [streamActive, setStreamActive] = useState<boolean>(false);
+  const [streamConfig, setStreamConfig] = useState<VideoStreamConfig>({ resolution: '1080p', bitrate: '4500kbps', frameRate: 60 });
+  const [streamHealth, setStreamHealth] = useState<StreamHealthStatus>({ isConnected: false, networkLatency: 0, packetLoss: 0 });
 
-  const initiateStream = async () => {
+  const startVideoStream = async () => {
     try {
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/start_stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(streamConfig),
       });
-      if (response.ok) setIsActive(true);
-      else console.error('Failed to initiate stream');
+      if (response.ok) setStreamActive(true);
+      else console.error('Failed to start video stream');
     } catch (error) {
-      console.error('Error initiating stream:', error);
+      console.error('Error starting video stream:', error);
     }
   };
 
-  const updateStreamSettings = async (newSettings: VideoStreamSettings) => {
-    setSettings(newSettings);
-    if (isActive) {
+  const modifyStreamConfig = async (newConfig: VideoStreamConfig) => {
+    setStreamConfig(newConfig);
+    if (streamActive) {
       try {
         const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/adjust_settings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newSettings),
+          body: JSON.stringify(newConfig),
         });
-        if (!response.ok) console.error('Failed to update stream settings');
+        if (!response.ok) console.error('Failed to modify stream config');
       } catch (error) {
-        console.error('Error updating stream settings:', error);
+        console.error('Error modifying stream config:', error);
       }
     }
   };
 
   useEffect(() => {
-    if (isActive) {
-      const healthCheckInterval = setInterval(async () => {
+    if (streamActive) {
+      const healthMonitoringInterval = setInterval(async () => {
         try {
           const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/stream_health`);
-          const currentHealth: VideoStreamHealth = await response.json();
-          setHealth(currentHealth);
+          const currentHealth: StreamHealthStatus = await response.json();
+          setStreamHealth(currentHealth);
         } catch (error) {
           console.error('Error fetching stream health:', error);
         }
       }, 5000);
 
-      return () => clearInterval(healthCheckInterval);
+      return () => clearInterval(healthMonitoringInterval);
     }
-  }, [isActive]);
+  }, [streamActive]);
 
-  return { isActive, settings, health, startStream: initiateStream, adjustStreamSettings: updateStreamSettings };
+  return { 
+    streamActive, 
+    streamConfig, 
+    streamHealth, 
+    activateStream: startVideoStream, 
+    updateStreamConfig: modifyStreamConfig 
+  };
 };
 
-export default useVideoStream;
+export default useStreamControl;
