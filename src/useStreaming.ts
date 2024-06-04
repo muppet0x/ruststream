@@ -14,51 +14,68 @@ interface StreamHealthStatus {
 
 const useStreamControl = () => {
   const [streamActive, setStreamActive] = useState<boolean>(false);
-  const [streamConfig, setStreamConfig] = useState<VideoStreamConfig>({ resolution: '1080p', bitrate: '4500kbps', frameRate: 60 });
-  const [streamHealth, setStreamHealth] = useState<StreamHealthStatus>({ isConnected: false, networkLatency: 0, packetLoss: 0 });
+  const [streamConfig, setStreamConfig] = useState<VideoStreamConfig>({ 
+    resolution: '1080p', 
+    bitrate: '4500kbps', 
+    frameRate: 60 
+  });
+  const [streamHealth, setStreamHealth] = useState<StreamHealthStatus>({ 
+    isConnected: false, 
+    networkLatency: 0, 
+    packetLoss: 0 
+  });
 
+  // Function to start the video stream
   const startVideoStream = async () => {
-    try {
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/start_stream`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(streamConfig),
-      });
-      if (response.ok) setStreamActive(true);
-      else console.error('Failed to start video stream');
-    } catch (error) {
-      console.error('Error starting video stream:', error);
-    }
+    await sendRequest('start_stream', streamConfig, () => setStreamActive(true), 'Failed to start video stream');
   };
 
+  // Function to modify the streaming configuration
   const modifyStreamConfig = async (newConfig: VideoStreamConfig) => {
     setStreamConfig(newConfig);
     if (streamActive) {
-      try {
-        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/adjust_settings`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newConfig),
-        });
-        if (!response.ok) console.error('Failed to modify stream config');
-      } catch (error) {
-        console.error('Error modifying stream config:', error);
-      }
+      await sendRequest('adjust_settings', newConfig, undefined, 'Failed to modify stream config');
     }
   };
 
+  // Reusable function for sending requests
+  const sendRequest = async (
+    endpoint: string,
+    body: object,
+    onSuccess?: () => void,
+    errorMessage?: string
+  ) => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (response.ok) onSuccess?.();
+      else console.error(errorMessage || 'Request failed');
+    } catch (error) {
+      console.error(errorMessage || 'Request error:', error);
+    }
+  };
+
+  // Effect hook for monitoring stream health
   useEffect(() => {
-    if (streamActive) {
-      const healthMonitoringInterval = setInterval(async () => {
-        try {
-          const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/stream_health`);
+    const monitorStreamHealth = async () => {
+      try {
+        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/stream_health`);
+        if (response.ok) {
           const currentHealth: StreamHealthStatus = await response.json();
           setStreamHealth(currentHealth);
-        } catch (error) {
-          console.error('Error fetching stream health:', error);
+        } else {
+          console.error('Failed to fetch stream health');
         }
-      }, 5000);
+      } catch (error) {
+        console.error('Error fetching stream health:', error);
+      }
+    };
 
+    if (streamActive) {
+      const healthMonitoringInterval = setInterval(monitorStreamHealth, 5000);
       return () => clearInterval(healthMonitoringInterval);
     }
   }, [streamActive]);
@@ -66,7 +83,7 @@ const useStreamControl = () => {
   return { 
     streamActive, 
     streamConfig, 
-    streamHealth, 
+    streamHealth,
     activateStream: startVideoStream, 
     updateStreamConfig: modifyStreamConfig 
   };
