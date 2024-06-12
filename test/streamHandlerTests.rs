@@ -12,7 +12,7 @@ struct TestEnvironment {
 
 impl TestEnvironment {
     async fn new() -> Self {
-        dotenv().ok(); 
+        dotenv().ok();
 
         let stream_service = MockStream::new(
             env::var("STREAM_SERVICE_URL").expect("STREAM_SERVICE_URL must be set"),
@@ -23,6 +23,10 @@ impl TestEnvironment {
             stream: Arc::new(Mutex::new(stream_service)),
         }
     }
+
+    async fn reset_stream(&self) -> Result<(), String> {
+        self.stream.lock().await.reset().await
+    }
 }
 
 #[cfg(test)]
@@ -32,20 +36,28 @@ mod tests {
     #[tokio::test]
     async fn test_high_volume_streaming() {
         let test_env = TestEnvironment::new().await;
-
+        
         let result = test_env.stream.lock().await.simulate_high_volume().await;
-
+        
         assert!(result.is_ok(), "The stream should handle high volumes of data seamlessly");
     }
 
     #[tokio::test]
     async fn test_user_interaction_handling() {
         let test_env = TestEnvironment::new().await;
-
+        
         let play_result = test_env.stream.lock().await.play().await;
         assert!(play_result.is_ok(), "The play action should succeed");
-
+        
         let pause_result = test_env.stream.lock().await.pause().await;
         assert!(pause_result.is_ok(), "The pause action should succeed");
+    }
+
+    #[tokio::test]
+    async fn test_stream_reset() {
+        let test_env = TestEnvironment::new().await;
+        
+        let reset_result = test_env.reset_stream().await;
+        assert!(reset_result.is_ok(), "The stream should be able to reset successfully");
     }
 }
