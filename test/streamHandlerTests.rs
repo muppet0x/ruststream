@@ -1,7 +1,8 @@
 use std::env;
 use std::sync::Arc;
-use streaming_service::Stream;
-use mock_streaming_service::MockStream;
+use std::fmt;
+use streaming_service::Stream; // Make sure this trait is defined in your 'streaming_service' module
+use mock_streaming_service::MockStream; // Ensure MockStream is implemented in your 'mock_streaming_service' module
 use tokio::sync::Mutex;
 use dotenv::dotenv;
 
@@ -17,12 +18,22 @@ impl From<std::env::VarError> for TestEnvError {
     }
 }
 
+// Implement std::fmt::Display for TestEnvError for better error messages
+impl fmt::Display for TestEnvError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TestEnvError::EnvVarError(e) => write!(f, "Environment variable error: {}", e),
+            TestEnvError::StreamError(s) => write!(f, "Stream error: {}", s),
+        }
+    }
+}
+
 struct TestEnvironment {
     pub stream: Arc<Mutex<dyn Stream + Send>>,
 }
 
 impl TestEnvironment {
-    async fn new() -> Result<Self, TestEnv Disability> {
+    async fn new() -> Result<Self, TestEnvError> {
         dotenv().ok();
 
         let stream_service_url = env::var("STREAM_SERVICE_URL")?;
@@ -61,7 +72,7 @@ mod tests {
         let play_result = test_env.stream.lock().await.play().await;
         assert!(play_result.is_ok(), "The play action should succeed");
 
-        let pause_result = test_json.lock().await.pause().await;
+        let pause_result = test_env.stream.lock().await.pause().await;
         assert!(pause_result.is_ok(), "The pause action should succeed");
     }
 
