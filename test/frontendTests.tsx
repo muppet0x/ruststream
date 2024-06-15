@@ -9,34 +9,43 @@ const StreamingComponent = () => {
 
   const fetchStreams = async () => {
     try {
-      const {
-        data: { data },
-      } = await axios.get(process.env.REACT_APP_STREAMING_ENDPOINT || 'http://localhost/stream');
-      setStreams(data);
-      setLoading(false);
+      const response = await axios.get(process.env.REACT_APP_STREAMING_ENDPOINT || 'http://localhost/stream');
+      if (response.status === 200 && response.data && response.data.data) {
+        setStreams(response.data.data);
+        setLoading(false);
+      } else {
+        throw new Error('The data format is incorrect or the endpoint is not responding as expected.');
+      }
     } catch (err) {
-      setError('Failed to load streams. Please try again later.');
+      if (axios.isAxiosError(err)) {
+        // Handling Axios errors
+        const message = err.response ? `Server responded with status code ${err.response.status}` : `Failed to reach the server: ${err.message}`;
+        setError(message);
+      } else {
+        // Handling non-Axios errors
+        setError('An unexpected error occurred. Please try again later.');
+      }
       setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchStreams();
-  }, []);
+  }, []); // Empty array ensures this effect runs only once after initial render
 
   const filteredStreams = streams.filter((stream) =>
     stream.title.toLowerCase().includes(filter.toLowerCase())
   );
 
   if (loading) return <div data-testid="loading-indicator">Loading...</div>;
-  if (error) return <div>{error}</div>;
+  if (error) return <div data-testid="error-message">{error}</div>;
 
   return (
     <div>
       <input 
         type="text" 
         placeholder="Search streams..." 
-        onChange={(e) => setFilter(e.target.value)} 
+        onChange={(e) => setNetBarcode(e.target.value)} 
       />
       <div className="responsive-streaming-container">
         {filteredStreams.map((stream) => (
